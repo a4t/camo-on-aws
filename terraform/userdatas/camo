@@ -1,0 +1,133 @@
+#!/bin/bash
+
+apt-get update
+curl -sL https://deb.nodesource.com/setup_6.x | bash -
+apt-get install -y nodejs libpcre3 libpcre3-dev zlib1g-dev gcc make
+
+cd /var
+git clone https://github.com/atmos/camo.git
+
+wget -O /usr/local/src/nginx.tar.gz http://nginx.org/download/nginx-1.10.1.tar.gz
+mkdir /usr/local/src/nginx && tar xzf /usr/local/src/nginx.tar.gz -C /usr/local/src/nginx --strip-components 1
+rm -rf /usr/local/src/nginx.tar.gz
+cd /usr/local/src/nginx
+./configure \
+  --with-http_realip_module
+make
+make install
+
+# Nginx config
+mkdir /var/log/nginx
+
+cat << EOS > /usr/local/nginx/conf/nginx.conf
+worker_processes 1;
+pid /var/run/nginx.pid;
+
+error_log /var/log/nginx/error.log;
+error_log /var/log/nginx/error.log notice;
+error_log /var/log/nginx/error.log info;
+
+events {
+  worker_connections 1024;
+}
+
+http {
+  include      mime.types;
+  default_type application/octet-stream;
+
+  real_ip_header X-Forwarded-For;
+  server_tokens  off;
+  etag           off;
+
+  sendfile          on;
+  tcp_nopush        on;
+  keepalive_timeout 65;
+  gzip              on;
+  gzip_disable      "msie6";
+  tcp_nodelay       on;
+
+  client_max_body_size        5m;
+  client_header_buffer_size   1k;
+  client_body_buffer_size     32k;
+  large_client_header_buffers 4 8k;
+  types_hash_max_size         2048;
+  open_file_cache             max=1000 inactive=60s;
+
+  log_format ltsv 'time:\$time_iso8601\t'
+                  'remote_addr:\$remote_addr\t'
+                  'request_method:\$request_method\t'
+                  'request_length:\$request_length\t'
+                  'request_uri:\$request_uri\t'
+                  'https:\$https\t'
+                  'uri:\$uri\t'
+                  'query_string:\$query_string\t'
+                  'status:\$status\t'
+                  'bytes_sent:\$bytes_sent\t'
+                  'body_bytes_sent:\$body_bytes_sent\t'
+                  'referer:\$http_referer\t'
+                  'useragent:\$http_user_agent\t'
+                  'forwardedfor:\$http_x_forwarded_for\t'
+                  'request_time:\$request_time\t'
+                  'upstream_response_time:\$upstream_response_time';
+
+  server {
+    listen      80;
+    server_name localhost;
+    access_log  /var/log/nginx/access.log ltsv;
+
+    location /ping {
+      access_log off;
+      add_header 'Content-Type' 'text/plain charset=UTF-8';
+      return 200 'OK';
+    }
+
+    location / {
+      proxy_buffers            100 8k;
+      proxy_buffer_size        8k;
+      proxy_max_temp_file_size 16m;
+      proxy_pass               http://127.0.0.1:8081;
+    }
+  }
+}
+EOS
+
+cat << EOS > /etc/logrotate.d/nginx
+"/var/log/nginx/access.log" "/var/log/nginx/error.log" {
+  missingok
+  notifempty
+  daily
+  rotate 7
+  create 644 www-data root
+  compress
+  delaycompress
+  notifempty
+  sharedscripts
+  postrotate
+      [ ! -f /var/run/nginx.pid ] || kill -USR1 `cat /var/run/nginx.pid`
+  endscript
+}
+EOS
+
+# Setting pm2
+npm install pm2 -g
+[ -n "${KEYMETRICS_PUBLIC_KEY}" ] && su camo -c 'pm2 link ${KEYMETRICS_PUBLIC_KEY} ${KEYMETRICS_SECRET_KEY} camo-$$(curl -sS http://169.254.169.254/latest/meta-data/instance-id)'
+cat << EOS > /etc/logrotate.d/pm2-user
+/home/camo/.pm2/pm2.log /home/camo/.pm2/logs/*.log {
+  rotate 7
+  weekly
+  missingok
+  notifempty
+  compress
+  delaycompress
+  create 0640 camo root
+}
+EOS
+
+# Setting camo
+useradd -m camo
+export CAMO_KEY=${CAMO_KEY}
+export CAMO_LENGTH_LIMIT=${CAMO_LENGTH_LIMIT}
+
+# Service start
+su camo -c 'pm2 start /var/camo/server.js --name camo'
+/usr/local/nginx/sbin/nginx

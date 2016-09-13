@@ -1,0 +1,19 @@
+developer_ip = [
+  "127.0.0.1/32"
+  "127.0.0.2/32"
+]
+
+# Domain
+cloudfront = {
+  log_bucket_name     = "s3 bucket name"
+  domain              = "camo.example.com"
+  acm_certificate_arn = "arn:aws:acm:us-east-1:000000000000:certificate/*****************"
+}
+route53 = {
+  zone_id = "XXXXXXXXXXX"
+  name    = "camo"
+}
+
+# Application
+key_name = "your key"
+camo_key = "camo key"
