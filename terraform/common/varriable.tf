@@ -17,7 +17,6 @@ variable cloudfront {
 }
 
 # Machine
-variable alarm_actions { default = [] }
 variable launch_config {
   default = {
     image_id                      = "ami-0919cd68"
@@ -38,6 +37,9 @@ variable autoscaling {
     force_delete              = "true"
   }
 }
+
+# Alarm
+variable alarm_actions { default = [] }
 
 # Application
 variable key_name          {}

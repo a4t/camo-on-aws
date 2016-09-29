@@ -10,12 +10,3 @@ variable health_check {
     interval            = "30"
   }
 }
-
-variable alarm_actions { default = [] }
-variable alert_server_count {
-  default = {
-    period             = "60"
-    evaluation_periods = "1"
-    threshold          = "2"
-  }
-}
