@@ -5,7 +5,6 @@ module "machine" {
   subnet             = "${module.network.subnet}"
   sgids              = "${module.network.sgids}"
   availability_zones = "${var.availability_zones}"
-  alarm_actions      = "${var.alarm_actions}"
   launch_config = {
     image_id                      = "${var.launch_config["image_id"]}"
     instance_type                 = "${var.launch_config["instance_type"]}"
