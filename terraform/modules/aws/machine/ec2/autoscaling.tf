@@ -10,6 +10,7 @@ resource "aws_autoscaling_group" "camo" {
   health_check_type         = "${var.autoscaling["health_check_type"]}"
   force_delete              = "${var.autoscaling["force_delete"]}"
   launch_configuration      = "${aws_launch_configuration.camo.name}"
+  termination_policies      = ["OldestInstance"]
 
   tag {
     key = "Name"
