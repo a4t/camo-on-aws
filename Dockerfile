@@ -2,7 +2,7 @@ FROM alpine:3.3
 
 MAINTAINER Shigure Onishi <shigure.onishi@supership.jp>
 
-ENV TERRAFORM_VERSION=0.7.3
+ENV TERRAFORM_VERSION=0.8.1
 
 RUN apk update && \
     apk add bash \
